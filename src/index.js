@@ -1,86 +1,50 @@
-// Servidor Express
+// imports
+const express = require('express');
+const cors = require('cors');
+const mysql = require('mysql2/promise');
+const dotenv = require('dotenv');
 
-// Para probar los ficheros estáticos del fronend, entrar en <http://localhost:4500/>
-// Para probar el API, entrar en <http://localhost:4500/api/items>
-
-// Imports
-
-const express = require("express");
-const cors = require("cors");
-const mysql = require("mysql2/promise");
-require('dotenv').config()
-
-
-
-// Arracar el servidor
-
+// server
 const server = express();
-
-// Configuración del servidor
-
-server.use(cors());
-server.use(express.json({limit: "25mb"}));
 server.set('view engine', 'ejs');
 
+// listen to the server
+const port = process.env.PORT || 4000;
+server.listen(port, () => {
+  console.log(`Server listening at http://localhost:${port}`);
+});
 
+// server configuration
+server.use(cors());
+dotenv.config();
+server.use(express.json({ limit: '25mb' }));
 
-// Conexion a la base de datos
-
+// connection to database
 async function getConnection() {
-  const connection = await mysql.createConnection(
-    {
-      host: process.env.DB_HOST || "localhost",
-      user: process.env.DB_USER || "root",
-      password: process.env.DB_PASS,  // <-- Pon aquí tu contraseña o en el fichero /.env en la carpeta raíz
-      database: process.env.DB_NAME || "Clase",
-    }
+  const connection = await mysql.createConnection({
+    host: process.env.HOST,
+    database: process.env.DATABASE,
+    user: process.env.GAMEUSER,
+    password: process.env.PASS,
+  });
+  await connection.connect();
+  console.log(
+    `Connection successful with database (identifier=${connection.threadId})`
   );
-
-  connection.connect();
-
   return connection;
 }
 
-
-
-// Poner a escuchar el servidor
-
-const port = process.env.PORT || 4500;
-server.listen(port, () => {
-  console.log(`Ya se ha arrancado nuestro servidor: http://localhost:${port}/`);
-});
-
-
-
-// Endpoints
-
-// GET /api/items
-
-server.get("/api/items", async (req, res) => {
-
-  const selectProducts = "SELECT * FROM products";
-
-  const conn = await getConnection();
-
-  const [results] = await conn.query(selectProducts);
-
-  console.log(results);
-
-  conn.end();
-
+// endpoints
+server.get('/api/randoming', async (req, res) => {
+  console.log('Retrieving random ingredient from database');
+  const connection = await getConnection();
+  const sql = `SELECT * FROM ingredients ORDER BY RAND() LIMIT 3`;
+  const [results] = await connection.query(sql);
   res.json(results);
+  connection.end();
 });
 
-
-
-// GET /details
-
-server.get("/details", async (req, res) => {
-
-  res.render('details', {})
-});
-
-
-// Serv estáticos
-
-server.use(express.static("./src/public_html"));
+// estáticos
+const pathServerPublicStyles = './src/public-css';
+server.use(express.static(pathServerPublicStyles));
+server.use(express.static('./src/public'));
